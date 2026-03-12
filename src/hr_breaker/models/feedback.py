@@ -49,3 +49,4 @@ class GeneratedPDF(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     first_name: str | None = None
     last_name: str | None = None
+    run_id: str | None = None

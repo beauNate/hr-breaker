@@ -94,9 +94,8 @@ class Settings(BaseSettings):
     # Agent limits
     agent_name_extractor_chars: int = 2000
 
-    # Translation settings
+    # Language settings
     default_language: str = "en"
-    translation_max_iterations: int = 2
 
     # Retry settings
     retry_max_attempts: int = 5

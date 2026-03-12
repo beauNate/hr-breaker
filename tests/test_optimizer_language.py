@@ -106,31 +106,3 @@ class TestOrchestrationPassesLanguage:
 
             assert mock_opt.call_args.kwargs.get("language") == russian
 
-    @pytest.mark.asyncio
-    async def test_no_post_processing_translation(self):
-        """optimize_for_job should NOT call translate_and_rerender anymore."""
-        russian = get_language("ru")
-        source = ResumeSource(content="John Doe\nPython dev")
-        job = JobPosting(
-            title="Backend Engineer", company="Acme",
-            requirements=["Python"], keywords=["python"],
-        )
-        mock_optimized = MagicMock()
-        mock_optimized.html = "<div>Тест</div>"
-        mock_optimized.data = None
-
-        with patch("hr_breaker.orchestration.optimize_resume", new_callable=AsyncMock) as mock_opt, \
-             patch("hr_breaker.orchestration._render_and_extract") as mock_render, \
-             patch("hr_breaker.orchestration.run_filters", new_callable=AsyncMock) as mock_filters, \
-             patch("hr_breaker.orchestration.translate_and_rerender", new_callable=AsyncMock) as mock_translate:
-
-            mock_opt.return_value = mock_optimized
-            mock_render.return_value = mock_optimized
-            mock_filters.return_value = ValidationResult(results=[
-                FilterResult(filter_name="test", passed=True, score=1.0),
-            ])
-
-            from hr_breaker.orchestration import optimize_for_job
-            await optimize_for_job(source, job=job, language=russian, max_iterations=1)
-
-            mock_translate.assert_not_called()

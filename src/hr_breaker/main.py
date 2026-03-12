@@ -14,7 +14,7 @@ asyncio.set_event_loop(st.session_state.event_loop)
 from hr_breaker.agents import extract_name, parse_job_posting
 from hr_breaker.config import get_settings
 from hr_breaker.models import GeneratedPDF, ResumeSource, ValidationResult, SUPPORTED_LANGUAGES, get_language
-from hr_breaker.orchestration import optimize_for_job, translate_and_rerender
+from hr_breaker.orchestration import optimize_for_job
 from hr_breaker.services import (
     PDFStorage,
     ResumeCache,
@@ -468,69 +468,6 @@ if "last_result" in st.session_state:
                 subprocess.run(["xdg-open", folder])
     elif optimized:
         st.error("Failed to render PDF")
-
-    # Translate existing result to another language (independent of "Resume language" option)
-    if optimized and optimized.html:
-        translate_targets = [lang for lang in SUPPORTED_LANGUAGES if lang.code != "en"]
-        if translate_targets:
-            tr_col1, tr_col2 = st.columns([2, 1])
-            with tr_col1:
-                translate_lang_code = st.selectbox(
-                    "Translate to…",
-                    options=[lang.code for lang in translate_targets],
-                    format_func=lambda c: next(lg.native_name for lg in translate_targets if lg.code == c),
-                    key="translate_target_lang",
-                    help="Translate this result without re-running optimization",
-                )
-            with tr_col2:
-                translate_clicked = st.button("🌐 Translate", use_container_width=True, key="translate_btn")
-            if translate_clicked and translate_lang_code:
-                translate_language = get_language(translate_lang_code)
-                try:
-                    with st.status(f"Translating to {translate_language.native_name}...", expanded=True) as tr_status:
-                        def on_tr_status(msg):
-                            tr_status.update(label=msg)
-                            tr_status.write(msg)
-
-                        translated = run_async(
-                            translate_and_rerender(optimized, translate_language, job, on_status=on_tr_status)
-                        )
-                        tr_status.update(label="Translation complete", state="complete")
-
-                    # Save translated PDF
-                    if translated.pdf_bytes:
-                        source = st.session_state["source_resume"]
-                        tr_pdf_path = pdf_storage.generate_path(
-                            source.first_name, source.last_name, job.company, job.title,
-                            lang_code=translate_language.code,
-                            run_id=st.session_state.get("run_id"),
-                        )
-                        tr_pdf_path.parent.mkdir(parents=True, exist_ok=True)
-                        tr_pdf_path.write_bytes(translated.pdf_bytes)
-
-                        pdf_record = GeneratedPDF(
-                            path=tr_pdf_path,
-                            source_checksum=source.checksum,
-                            company=job.company,
-                            job_title=job.title,
-                            first_name=source.first_name,
-                            last_name=source.last_name,
-                        )
-                        pdf_storage.save_record(pdf_record)
-
-                        # Preserve English HTML on first translation
-                        if "english_html" not in st.session_state["last_result"]:
-                            st.session_state["last_result"]["english_html"] = optimized.html
-
-                        # Update session state with translated result
-                        st.session_state["last_result"] = {
-                            **st.session_state["last_result"],
-                            "optimized": translated,
-                            "pdf_path": tr_pdf_path,
-                        }
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Translation failed: {e}")
 
     # Resume content preview
     if optimized:

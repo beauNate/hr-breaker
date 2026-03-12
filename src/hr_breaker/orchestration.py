@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable
 from contextlib import contextmanager
 
-from hr_breaker.agents import optimize_resume, parse_job_posting, translate_resume, review_translation
+from hr_breaker.agents import optimize_resume, parse_job_posting
 from hr_breaker.config import get_settings, logger
 from hr_breaker.models.language import Language
 from hr_breaker.filters import (
@@ -209,90 +209,6 @@ async def optimize_for_job(
             break
 
     return optimized, validation, job
-
-
-async def translate_and_rerender(
-    optimized: OptimizedResume,
-    language: Language,
-    job: JobPosting,
-    renderer: HTMLRenderer | None = None,
-    max_translation_iterations: int | None = None,
-    on_status: Callable[[str], None] | None = None,
-) -> OptimizedResume:
-    """Translate the optimized resume HTML and re-render the PDF.
-
-    Public API for translating an already-optimized resume.
-    Runs a mini translate-review loop (max_translation_iterations) to ensure quality.
-    """
-    if renderer is None:
-        renderer = HTMLRenderer()
-    if max_translation_iterations is None:
-        max_translation_iterations = get_settings().translation_max_iterations
-    original_html = optimized.html
-    feedback: str | None = None
-
-    for i in range(max_translation_iterations):
-        iter_label = f"Translation iteration {i + 1}/{max_translation_iterations}"
-        logger.debug("%s: translating to %s", iter_label, language.english_name)
-        if on_status:
-            status = f"Translating to {language.english_name}..."
-            if i > 0:
-                status = f"Refining {language.english_name} translation (attempt {i + 1})..."
-            on_status(status)
-
-        with log_time(f"translate_resume (iter {i + 1})"):
-            translation = await translate_resume(original_html, language, job, feedback=feedback)
-
-        logger.debug("%s: reviewing translation", iter_label)
-        if on_status:
-            on_status(f"Reviewing {language.english_name} translation...")
-
-        with log_time(f"review_translation (iter {i + 1})"):
-            review = await review_translation(original_html, translation.html, language, job)
-
-        logger.debug(
-            "%s: review score=%.2f, passed=%s", iter_label, review.score, review.passed
-        )
-
-        # Render to check page count early
-        candidate = optimized.model_copy(update={"html": translation.html})
-        candidate = _render_and_extract(candidate, renderer)
-        overflow = candidate.page_count is not None and candidate.page_count > 1
-
-        if overflow:
-            logger.debug("%s: translated content overflows to %d pages", iter_label, candidate.page_count)
-
-        if review.passed and not overflow:
-            logger.debug("Translation approved (score=%.2f)", review.score)
-            break
-
-        # Build feedback for next iteration
-        feedback_parts = []
-        if overflow:
-            feedback_parts.append(
-                "CRITICAL: The translated resume overflows to page 2. "
-                "Shorten the translation — use shorter synonyms, abbreviations, "
-                "or tighter phrasing. Do NOT drop content sections."
-            )
-        if review.issues:
-            feedback_parts.append("Issues: " + "; ".join(review.issues))
-        if review.suggestions:
-            feedback_parts.append("Suggestions: " + "; ".join(review.suggestions))
-        feedback = "\n".join(feedback_parts)
-        logger.debug("Translation feedback: %s", feedback)
-    else:
-        logger.warning(
-            "Translation review did not pass after %d iterations (score=%.2f), using last translation",
-            max_translation_iterations, review.score,
-        )
-
-    # Use last rendered candidate (already rendered in loop)
-    translated_optimized = candidate
-
-    if on_status:
-        on_status("Translation complete")
-
-    return translated_optimized
 
 
 def _render_and_extract(optimized: OptimizedResume, renderer) -> OptimizedResume:
