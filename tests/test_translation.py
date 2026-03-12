@@ -452,7 +452,7 @@ class TestTranslateAndRerender:
             )
 
             assert mock_tr.call_count == 2
-            mock_render.assert_called_once()  # Still renders the last translation
+            assert mock_render.call_count == 2  # Renders each iteration to check page count
 
 
 # ── Orchestration optimize_for_job translation integration ────────────────────

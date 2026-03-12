@@ -50,3 +50,4 @@ class OptimizedResume(BaseModel):
     pdf_text: str | None = None
     pdf_bytes: bytes | None = None
     pdf_path: Path | None = None
+    page_count: int | None = None

@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from hr_breaker.agents import optimize_resume, parse_job_posting, translate_resume, review_translation
 from hr_breaker.config import get_settings, logger
 from hr_breaker.filters import (
+    ContentLengthChecker,
     LLMChecker,
     DataValidator,
     FilterRegistry,
@@ -29,6 +30,7 @@ from hr_breaker.services.renderer import RenderError, HTMLRenderer
 
 # Ensure filters are registered
 _ = (
+    ContentLengthChecker,
     DataValidator,
     LLMChecker,
     KeywordMatcher,
@@ -258,12 +260,26 @@ async def translate_and_rerender(
             "%s: review score=%.2f, passed=%s", iter_label, review.score, review.passed
         )
 
-        if review.passed:
+        # Render to check page count early
+        candidate = optimized.model_copy(update={"html": translation.html})
+        candidate = _render_and_extract(candidate, renderer)
+        overflow = candidate.page_count is not None and candidate.page_count > 1
+
+        if overflow:
+            logger.debug("%s: translated content overflows to %d pages", iter_label, candidate.page_count)
+
+        if review.passed and not overflow:
             logger.debug("Translation approved (score=%.2f)", review.score)
             break
 
         # Build feedback for next iteration
         feedback_parts = []
+        if overflow:
+            feedback_parts.append(
+                "CRITICAL: The translated resume overflows to page 2. "
+                "Shorten the translation — use shorter synonyms, abbreviations, "
+                "or tighter phrasing. Do NOT drop content sections."
+            )
         if review.issues:
             feedback_parts.append("Issues: " + "; ".join(review.issues))
         if review.suggestions:
@@ -276,9 +292,8 @@ async def translate_and_rerender(
             max_translation_iterations, review.score,
         )
 
-    # Update optimized with translated HTML and re-render PDF
-    translated_optimized = optimized.model_copy(update={"html": translation.html})
-    translated_optimized = _render_and_extract(translated_optimized, renderer)
+    # Use last rendered candidate (already rendered in loop)
+    translated_optimized = candidate
 
     if on_status:
         on_status("Translation complete")
@@ -303,7 +318,11 @@ def _render_and_extract(optimized: OptimizedResume, renderer) -> OptimizedResume
             pdf_text = extract_text_from_pdf_bytes(result.pdf_bytes)
 
         return optimized.model_copy(
-            update={"pdf_text": pdf_text, "pdf_bytes": result.pdf_bytes}
+            update={
+                "pdf_text": pdf_text,
+                "pdf_bytes": result.pdf_bytes,
+                "page_count": result.page_count,
+            }
         )
     except RenderError as e:
         logger.error(f"Render error: {e}")

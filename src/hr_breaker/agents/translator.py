@@ -43,6 +43,12 @@ TECHNICAL TERMS:
 - Use accepted {language_english} equivalents where they exist and are commonly used
 - When in doubt, keep the English term — professionals in the field will understand it
 
+PAGE LENGTH:
+- The translated resume MUST fit on one page when rendered to PDF
+- Text often expands during translation (e.g. Russian is ~20-30% longer than English)
+- Compensate by condensing phrasing — use shorter synonyms, abbreviations accepted in {language_english} professional context, or tighter sentence structure
+- Do NOT drop content sections — condense wording instead
+
 JOB CONTEXT (use to pick correct field-specific terminology):
 - Job field/industry context will be provided to help you choose the right professional vocabulary
 """
