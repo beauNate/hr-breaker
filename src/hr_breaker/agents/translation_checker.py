@@ -64,11 +64,11 @@ ACCEPTABLE (do NOT penalize):
 - Mixed-language bullet points where English technical terms are embedded in {language_english} sentences (this is normal in tech resumes)
 
 SCORING:
-- 1.0: Natural, professional {language_english} resume — reads like a native wrote it
-- 0.8-0.99: Minor issues — small phrasing improvements possible
-- 0.6-0.79: Noticeable issues — awkward phrasing, wrong terms, unnecessary English
-- 0.4-0.59: Significant problems — multiple wrong terms, unnatural language
-- 0.0-0.39: Poor quality — reads like machine translation, major errors
+- 0.95-1.0: Natural, professional {language_english} resume — reads like a native wrote it
+- 0.90-0.94: Only stylistic or debatable issues remain — nothing clearly wrong
+- 0.70-0.89: Noticeable issues — awkward phrasing, wrong terms, unnecessary English
+- 0.50-0.69: Significant problems — multiple wrong terms, unnatural language
+- 0.0-0.49: At least one glaring error — completely wrong term, nonsensical phrase, or reads like machine translation
 
 When listing issues, quote the problematic text and suggest the correct {language_english} phrasing.
 """

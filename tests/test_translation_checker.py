@@ -142,4 +142,4 @@ class TestTranslationThresholdConfig:
     def test_default_threshold(self):
         from hr_breaker.config import Settings
         s = Settings()
-        assert s.filter_translation_threshold == 1.0
+        assert s.filter_translation_threshold == 0.95
